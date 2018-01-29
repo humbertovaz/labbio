@@ -48,3 +48,9 @@ class RecordUniProt:
 
     def getSeq(self):
         return self.seq
+
+    def getEvalu(self):
+        return self.evalu
+
+    def getScore(self):
+        return self.score

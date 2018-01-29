@@ -13,7 +13,7 @@ from Bio.Blast import NCBIXML
 
 def fetch_sequence():
     genesStarteStop = [(87011,88213),(88210,89373),(1589969,1590817),(1903771,1904463),(3274457,3275026),(3295774,3296526),(3328322,3329788)]
-    Entrez.email = "a71150@alunos.uminho.pt"
+    Entrez.email = "a71150@alunos.uminho.pt" #Email do André Germano
     i = 0
     # Ficheiros dos genes
     for tuplo in genesStarteStop:
@@ -45,7 +45,6 @@ def uniprot(proteinids): # devolve dicionario de RecordUniprot
                     seq = str(record.seq)
                     idfasta = str(aux).split("|")[1]
                     name, id, locale, status, fmol, bio, function2, leng, ec = anal_prot.getDataFromProt(idfasta)
-                    # name, id, locale, status, fmol, bio, function2, leng, ec, seq, evalu, score
                     rec = RecordUniProt(name, id, locale, status, ''.join(fmol), ''.join(bio), function2, leng, ec, seq)
                     proteinsRecords[idfasta] = rec
 
@@ -101,11 +100,6 @@ def geneIdentification():
     return dicionario
 
 
-def sanit(line):
-    res = re.sub('[;]', '', line)
-    return res
-
-
 def csv_exportGenes(genedict):
     sep = ";"
     head = ""
@@ -114,7 +108,6 @@ def csv_exportGenes(genedict):
     filecsv = open("GenesTable.csv", "w")
     dataCSV += "Locus Tag" + sep + "Gene Name" + sep + "Strand" + sep + "Protein" + "\n"
     for key in genedict:
-        # dataCSV += sanit(str(genedict[key]))+sep
         rec = genedict[key]
         dataCSV += rec.getlocustag() + sep + rec.getgenename() + sep + rec.getstrand() + sep + key + "\n"
     filecsv.write(dataCSV + "\n")
@@ -129,19 +122,32 @@ def csv_exportProt(protdict):
     filecsv = open("protTable.csv", "w")
     dataCSV += "Protein Name" + sep + "Id" + sep + "Funcao Molecular"+ sep + "Biological process" + sep + "Localizacao celular" + sep + "Status" + sep + "Function2" + sep + "Length" + sep + "EC" + sep + "Sequencia" + "\n"
     for key in protdict:
-        #dataCSV += sanit(str(genedict[key]))+sep
         rec = protdict[key]
-        #print(rec)
         dataCSV += rec.getName() + sep + rec.getId() + sep + rec.getfmol() + sep + rec.getbio() +sep + rec.getlocale() + sep + rec.getstatus() + sep + rec.getfunction2() + sep + rec.getleng() + sep + rec.getEC() + sep + rec.getSeq() + "\n"
+    filecsv.write(dataCSV + "\n")
+    filecsv.close()
+    return "ProtTable.csv"
+
+def csv_exportProtBlast(protdict):
+    sep = ";"
+    head = ""
+    dataCSV = ""
+    # Cria ficheiro .csv em modo de escrita
+    filecsv = open("BlastprotTable.csv", "w")
+    dataCSV += "Protein Name" + sep + "Id" + sep + "Funcao Molecular"+ sep + "Biological process" + sep + "Localizacao celular" + sep + "Status" + sep + "Function2" + sep + "Length" + sep + "EC" + sep + "Evalue" + sep + "Score" + "\n"
+    for key in protdict:
+        rec = protdict[key]
+        dataCSV += rec.getName() + sep + rec.getId() + sep + rec.getfmol() + sep + rec.getbio() +sep + rec.getlocale() + sep + rec.getstatus() + sep + rec.getfunction2() + sep + rec.getleng() + sep + rec.getEC() + sep + rec.getEvalu() + sep + rec.getScore() +  "\n"
     filecsv.write(dataCSV + "\n")
     filecsv.close()
     return "ProtTable.csv"
 
 def uniprotBlast(proteinids): # devolve dicionario de RecordUniprot
     proteinsRecords = []
-    for (protein_id, eval, score) in proteinids:
-        name, id, locale, status, fmol, bio, function2, leng, ec, seq, evalu, score = "-", "-", "-", "-", "-", "-", "-",\
-                                                                                      "-", "-", "-", "-", "-"
+    evalu, score = "-", "-"
+    for (protein_id, evalu, score) in proteinids:
+        name, id, locale, status, fmol, bio, function2, leng, ec, seq = "-", "-", "-", "-", "-", "-", "-",\
+                                                                                      "-", "-", "-"
         try:
             params = {"query": protein_id, "format": "fasta"}
             frecord = requests.get("http://www.uniprot.org/uniprot/", params)
@@ -152,8 +158,7 @@ def uniprotBlast(proteinids): # devolve dicionario de RecordUniprot
                 seq = str(record.seq)
                 idfasta = str(aux).split("|")[1]
                 name, id, locale, status, fmol, bio, function2, leng, ec = anal_prot.getDataFromProt(idfasta)
-                # name, id, locale, status, fmol, bio, function2, leng, ec, seq, evalu, score
-                rec = RecordUniProt(name, id, locale, status, ''.join(fmol), ''.join(bio), function2, leng, ec, seq, eval, score)
+                rec = RecordUniProt(name, id, locale, status, ''.join(fmol), ''.join(bio), function2, leng, ec, seq, str(evalu), str(score))
                 proteinsRecords.append(rec)
 
 
@@ -182,9 +187,7 @@ def blast(seq, database="swissprot", maxMatch=5): #retorna tuplos (id,evalu,scor
     for blast_record in blast:
         for alignment in blast_record.alignments:
             for hsp in alignment.hsps:
-                # print(str(hsp))
                 if hsp.expect < E_VALUE_THRESH and hsp.score > SCORE:
-                    #print("NICE\n\tE_VALUE_THRESH: " + str(hsp.expect) + " SCORE: " + str(hsp.score))
                     data = (alignment.title.split("|")[3], hsp.expect, hsp.score)
                     idsGoodBlast.append(data)
                     matches += 1
@@ -204,21 +207,38 @@ def blastTodas(proteinsRecords):
 
     return dicProtAposBlast # cada posicao do dicionario contem record com info relativa às proteinas geradas pelo blast apartir da fornecida (idfasta)
 
-
+def csv_exportblast(protdict):
+    sep = ";"
+    head = ""
+    dataCSV = ""
+    # Cria ficheiro .csv em modo de escrita
+    filecsv = open("blast.csv", "w")
+    dataCSV += "Id" + sep + "Blast Results" + sep + "Score" + sep + "E_value" + sep + "Function" + "\n"
+    for key in protdict:
+        dataCSV += key + sep
+        record = protdict[key]
+        for rec in record:
+            name,id,locale,status,fmol,function2,leng,ec,seq,evalu,score=rec.getAll()
+            dataCSV += id + sep + score + sep + evalu + sep + fmol + "\n" + " "+ sep
+    filecsv.write(dataCSV + "\n")
+    filecsv.close()
+    return "blast.csv"
 
 def main():
-    #fetch_sequence()
+    #Vai buscar a informação dos 7 genes
+    fetch_sequence()
+    #Cria um dicionario com Records dos genes
     genesdic = geneIdentification()
+    #Cria CSV com tabela de genes e sua info. apartir do dicionario obtido acima
     csv_exportGenes(genesdic)
+    #Cria um dicionario com "RecordsUniprot" de proteinas apartir do dicionario de genes 
     proteinsRecords = uniprot(genesdic)
+    #Cria CSV com tabela com informação importante resultante da pesquisa na Uniprot
     csv_exportProt(proteinsRecords)
+    #Executa o blast em todas as proteinas
     dicProtAposBlast = blastTodas(proteinsRecords)
-    for prot in dicProtAposBlast:
-        array = dicProtAposBlast[prot]
-        for record in array:
-            print (record.getAll())
-            print("---------")
-
-
+    #Cria CSV com tabela resultante do blast
+    csv_exportblast(dicProtAposBlast)
+    print("Done!")
 
 main()
